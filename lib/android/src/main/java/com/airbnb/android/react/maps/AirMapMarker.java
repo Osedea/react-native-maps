@@ -7,6 +7,8 @@ import android.graphics.Canvas;
 import android.graphics.drawable.Animatable;
 import android.graphics.drawable.Drawable;
 import android.net.Uri;
+import android.os.AsyncTask;
+import android.util.Log;
 import android.view.View;
 import android.widget.LinearLayout;
 import android.animation.ObjectAnimator;
@@ -36,6 +38,14 @@ import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.util.HashMap;
+import java.util.Map;
 
 import javax.annotation.Nullable;
 
@@ -74,6 +84,8 @@ public class AirMapMarker extends AirMapFeature {
   private boolean calloutAnchorIsSet;
 
   private boolean hasCustomMarkerView = false;
+
+  static Map<String, Bitmap> iconCache = new HashMap<>();
 
   private final DraweeHolder<?> logoHolder;
   private DataSource<CloseableReference<CloseableImage>> dataSource;
@@ -267,8 +279,7 @@ public class AirMapMarker extends AirMapFeature {
     if (uri == null) {
       iconBitmapDescriptor = null;
       update();
-    } else if (uri.startsWith("http://") || uri.startsWith("https://") ||
-        uri.startsWith("file://") || uri.startsWith("asset://")) {
+    } else if (uri.startsWith("file://") || uri.startsWith("asset://")) {
       ImageRequest imageRequest = ImageRequestBuilder
           .newBuilderWithSource(Uri.parse(uri))
           .build();
@@ -281,6 +292,29 @@ public class AirMapMarker extends AirMapFeature {
           .setOldController(logoHolder.getController())
           .build();
       logoHolder.setController(controller);
+    } else if (uri.startsWith("http://") || uri.startsWith("https://")) {
+      // Fetch images from remote location if not already cached.
+      Bitmap bitmap = iconCache.get(uri);
+
+      if (bitmap != null) {
+        iconBitmap = bitmap;
+        iconBitmapDescriptor = BitmapDescriptorFactory.fromBitmap(bitmap);
+
+        return;
+      } else {
+        try {
+          bitmap = bitmapFromNetwork(uri);
+
+          iconBitmap = bitmap;
+          iconBitmapDescriptor = BitmapDescriptorFactory.fromBitmap(bitmap);
+
+          // add fetched bitmap to 'virtual' cache
+          iconCache.put(uri, bitmap);
+        } catch (Exception e) {
+          iconBitmapDescriptor = null;
+        }
+      }
+      update();
     } else {
       iconBitmapDescriptor = getBitmapDescriptorByName(uri);
       if (iconBitmapDescriptor != null) {
@@ -295,6 +329,23 @@ public class AirMapMarker extends AirMapFeature {
           }
       }
       update();
+    }
+  }
+
+   static Bitmap bitmapFromNetwork(String url) throws IOException {
+    try {
+      URL urlConnection = new URL(url);
+      Bitmap bitmap = new NetworkImageUtil().execute(urlConnection).get();
+
+      if (bitmap == null) {
+        throw new IOException("Failed to retrieve image at: " + url);
+      }
+
+      return bitmap;
+    } catch (MalformedURLException ex) {
+      throw ex;
+    } catch (Exception ex) {
+      throw new IOException(ex);
     }
   }
 
