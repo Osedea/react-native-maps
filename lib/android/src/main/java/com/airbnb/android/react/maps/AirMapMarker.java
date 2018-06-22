@@ -7,6 +7,8 @@ import android.graphics.Canvas;
 import android.graphics.drawable.Animatable;
 import android.graphics.drawable.Drawable;
 import android.net.Uri;
+import android.os.AsyncTask;
+import android.util.Log;
 import android.view.View;
 import android.widget.LinearLayout;
 import android.animation.ObjectAnimator;
@@ -36,6 +38,14 @@ import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.util.HashMap;
+import java.util.Map;
 
 import javax.annotation.Nullable;
 
@@ -74,6 +84,11 @@ public class AirMapMarker extends AirMapFeature {
   private boolean calloutAnchorIsSet;
 
   private boolean hasCustomMarkerView = false;
+
+  private int markerHeight = 0;
+  private int markerWidth = 0;
+
+  private final String TAG = "AIR_MAP_MARKER";
 
   private final DraweeHolder<?> logoHolder;
   private DataSource<CloseableReference<CloseableImage>> dataSource;
@@ -240,6 +255,11 @@ public class AirMapMarker extends AirMapFeature {
     update();
   }
 
+  public void setMarkerSize(ReadableMap size) {
+    this.markerWidth = size.getInt("width");
+    this.markerHeight = size.getInt("height");
+  }
+
   public LatLng interpolate(float fraction, LatLng a, LatLng b) {
     double lat = (b.latitude - a.latitude) * fraction + a.latitude;
     double lng = (b.longitude - a.longitude) * fraction + a.longitude;
@@ -263,12 +283,13 @@ public class AirMapMarker extends AirMapFeature {
     animator.start();
   }
 
+  static Map<String, Bitmap> iconCache = new HashMap<>();
+
   public void setImage(String uri) {
     if (uri == null) {
       iconBitmapDescriptor = null;
       update();
-    } else if (uri.startsWith("http://") || uri.startsWith("https://") ||
-        uri.startsWith("file://") || uri.startsWith("asset://")) {
+    } else if (uri.startsWith("file://") || uri.startsWith("asset://")) {
       ImageRequest imageRequest = ImageRequestBuilder
           .newBuilderWithSource(Uri.parse(uri))
           .build();
@@ -281,6 +302,32 @@ public class AirMapMarker extends AirMapFeature {
           .setOldController(logoHolder.getController())
           .build();
       logoHolder.setController(controller);
+    } else if (uri.startsWith("http://") || uri.startsWith("https://")) {
+      // Fetch images from remote location if not already cached.
+      // Downloads a bitmap image through and AsyncTask
+      Bitmap bitmap = iconCache.get(uri);
+
+      if (bitmap != null) {
+        iconBitmap = bitmap;
+        iconBitmapDescriptor = BitmapDescriptorFactory.fromBitmap(bitmap);
+
+        return;
+      } else {
+        try {
+          bitmap = bitmapFromNetwork(uri);
+          // resize bitmap
+          Bitmap resizedBitmap = Bitmap.createScaledBitmap(bitmap, this.markerWidth, this.markerHeight , false);
+
+          iconBitmap = resizedBitmap;
+          iconBitmapDescriptor = BitmapDescriptorFactory.fromBitmap(resizedBitmap);
+
+          // add fetched bitmap to 'virtual' cache
+          iconCache.put(uri, resizedBitmap);
+        } catch (Exception e) {
+          iconBitmapDescriptor = null;
+        }
+      }
+      update();
     } else {
       iconBitmapDescriptor = getBitmapDescriptorByName(uri);
       if (iconBitmapDescriptor != null) {
@@ -295,6 +342,37 @@ public class AirMapMarker extends AirMapFeature {
           }
       }
       update();
+    }
+  }
+  // TODO: Put this class in its own file.
+  private static class RetrieveDrawableFromUrl extends AsyncTask<URL, Void, Bitmap> {
+    protected Bitmap doInBackground(URL... url) {
+      try {
+        HttpURLConnection connection = (HttpURLConnection) url[0].openConnection();
+        connection.connect();
+        InputStream input = connection.getInputStream();
+        Bitmap bitmap = BitmapFactory.decodeStream(input);
+        return bitmap;
+      } catch (Exception ex) {
+        return null;
+      }
+    }
+  }
+
+  static Bitmap bitmapFromNetwork(String url) throws IOException {
+    try {
+      URL urlConnection = new URL(url);
+      Bitmap bitmap = new RetrieveDrawableFromUrl().execute(urlConnection).get();
+
+      if (bitmap == null) {
+        throw new IOException("Failed to retrieve image at: " + url);
+      }
+
+      return bitmap;
+    } catch (MalformedURLException ex) {
+      throw ex;
+    } catch (Exception ex) {
+      throw new IOException(ex);
     }
   }
 

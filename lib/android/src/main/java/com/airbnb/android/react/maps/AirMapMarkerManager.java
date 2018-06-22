@@ -133,6 +133,11 @@ public class AirMapMarkerManager extends ViewGroupManager<AirMapMarker> {
     view.setOpacity(opacity);
   }
 
+  @ReactProp(name = "markerSize")
+  public void setMarkerSize(AirMapMarker view, ReadableMap map) {
+    view.setMarkerSize(map);
+  }
+
   @Override
   public void addView(AirMapMarker parent, View child, int index) {
     // if an <Callout /> component is a child, then it is a callout view, NOT part of the
