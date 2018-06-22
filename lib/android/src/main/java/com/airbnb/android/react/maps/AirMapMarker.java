@@ -8,6 +8,8 @@ import android.graphics.Color;
 import android.graphics.drawable.Animatable;
 import android.graphics.drawable.Drawable;
 import android.net.Uri;
+import android.os.AsyncTask;
+import android.util.Log;
 import android.view.View;
 import android.widget.LinearLayout;
 import android.animation.ObjectAnimator;
@@ -37,6 +39,14 @@ import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.util.HashMap;
+import java.util.Map;
 
 import javax.annotation.Nullable;
 
@@ -80,6 +90,12 @@ public class AirMapMarker extends AirMapFeature {
 
   private boolean hasCustomMarkerView = false;
 
+  private ReadableMap markerSize;
+  private int markerHeight = 0;
+  private int markerWidth = 0;
+
+  private final String TAG = "AIR_MAP_MARKER";
+
   private final DraweeHolder<?> logoHolder;
   private DataSource<CloseableReference<CloseableImage>> dataSource;
   private final ControllerListener<ImageInfo> mLogoControllerListener =
@@ -99,6 +115,9 @@ public class AirMapMarker extends AirMapFeature {
                 Bitmap bitmap = closeableStaticBitmap.getUnderlyingBitmap();
                 if (bitmap != null) {
                   bitmap = bitmap.copy(Bitmap.Config.ARGB_8888, true);
+                  if (markerSize != null) {
+                    bitmap = bitmap.createScaledBitmap(bitmap, markerWidth, markerHeight, false);
+                  }
                   iconBitmap = bitmap;
                   iconBitmapDescriptor = BitmapDescriptorFactory.fromBitmap(bitmap);
                 }
@@ -290,6 +309,12 @@ public class AirMapMarker extends AirMapFeature {
     }
   }
 
+  public void setMarkerSize(ReadableMap size) {
+    markerSize = size;
+    markerWidth = size.getInt("width");
+    markerHeight = size.getInt("height");
+  }
+
   public LatLng interpolate(float fraction, LatLng a, LatLng b) {
     double lat = (b.latitude - a.latitude) * fraction + a.latitude;
     double lng = (b.longitude - a.longitude) * fraction + a.longitude;
@@ -313,6 +338,8 @@ public class AirMapMarker extends AirMapFeature {
     animator.start();
   }
 
+  static Map<String, Bitmap> iconCache = new HashMap<>();
+
   public void setImage(String uri) {
     hasViewChanges = true;
 
@@ -324,7 +351,6 @@ public class AirMapMarker extends AirMapFeature {
       ImageRequest imageRequest = ImageRequestBuilder
           .newBuilderWithSource(Uri.parse(uri))
           .build();
-
       ImagePipeline imagePipeline = Fresco.getImagePipeline();
       dataSource = imagePipeline.fetchDecodedImage(imageRequest, this);
       DraweeController controller = Fresco.newDraweeControllerBuilder()
@@ -333,20 +359,76 @@ public class AirMapMarker extends AirMapFeature {
           .setOldController(logoHolder.getController())
           .build();
       logoHolder.setController(controller);
+    } else if (uri.startsWith("http://") || uri.startsWith("https://")) {
+      // Fetch images from remote location if not already cached.
+      // Downloads a bitmap image through and AsyncTask
+      Bitmap bitmap = iconCache.get(uri);
+
+      if (bitmap != null) {
+        iconBitmap = bitmap;
+        iconBitmapDescriptor = BitmapDescriptorFactory.fromBitmap(bitmap);
+
+        return update(true)
+      } else {
+        try {
+          bitmap = bitmapFromNetwork(uri);
+          // resize bitmap
+          Bitmap resizedBitmap = Bitmap.createScaledBitmap(bitmap, this.markerWidth, this.markerHeight , false);
+
+          iconBitmap = resizedBitmap;
+          iconBitmapDescriptor = BitmapDescriptorFactory.fromBitmap(resizedBitmap);
+
+          // add fetched bitmap to 'virtual' cache
+          iconCache.put(uri, resizedBitmap);
+        } catch (Exception e) {
+          iconBitmapDescriptor = null;
+        }
+      }
+      update(true);
     } else {
       iconBitmapDescriptor = getBitmapDescriptorByName(uri);
       if (iconBitmapDescriptor != null) {
           int drawableId = getDrawableResourceByName(uri);
-          iconBitmap = BitmapFactory.decodeResource(getResources(), drawableId);
+          Bitmap bitmap = BitmapFactory.decodeResource(getResources(), drawableId);
+          if (markerSize != null) {
+            bitmap = Bitmap.createScaledBitmap(bitmap, markerWidth, markerHeight, false);
+            iconBitmapDescriptor = BitmapDescriptorFactory.fromBitmap(bitmap);
+          }
+          iconBitmap = bitmap;
           if (iconBitmap == null) { // VectorDrawable or similar
               Drawable drawable = getResources().getDrawable(drawableId);
-              iconBitmap = Bitmap.createBitmap(drawable.getIntrinsicWidth(), drawable.getIntrinsicHeight(), Bitmap.Config.ARGB_8888);
+              int width = drawable.getIntrinsicWidth();
+              int height = drawable.getIntrinsicHeight();
+
+              if (markerSize != null) {
+                width = markerWidth;
+                height = markerHeight;
+              }
+
+              iconBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
               drawable.setBounds(0, 0, drawable.getIntrinsicWidth(), drawable.getIntrinsicHeight());
               Canvas canvas = new Canvas(iconBitmap);
               drawable.draw(canvas);
           }
       }
       update(true);
+    }
+  }
+
+  static Bitmap bitmapFromNetwork(String url) throws IOException {
+    try {
+      URL urlConnection = new URL(url);
+      Bitmap bitmap = new NetworkImageUtil().execute(urlConnection).get();
+
+      if (bitmap == null) {
+        throw new IOException("Failed to retrieve image at: " + url);
+      }
+
+      return bitmap;
+    } catch (MalformedURLException ex) {
+      throw ex;
+    } catch (Exception ex) {
+      throw new IOException(ex);
     }
   }
 

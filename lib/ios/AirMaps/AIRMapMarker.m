@@ -278,6 +278,11 @@ NSInteger const AIR_CALLOUT_OPEN_ZINDEX_BASELINE = 999;
   [self setAlpha:opacity];
 }
 
+- (void) setMarkerSize:(NSDictionary *)markerSize
+{
+    _markerSize = markerSize;
+}
+
 - (void)setImageSrc:(NSString *)imageSrc
 {
     _imageSrc = imageSrc;
@@ -299,7 +304,22 @@ NSInteger const AIR_CALLOUT_OPEN_ZINDEX_BASELINE = 999;
                                                                          NSLog(@"%@", error);
                                                                      }
                                                                      dispatch_async(dispatch_get_main_queue(), ^{
-                                                                         self.image = image;
+                                                                         float width = image.size.width;
+                                                                         float height = image.size.height;
+                                                                         if (_markerSize != nil) {
+                                                                             width = _markerSize[@"width"] ? [_markerSize[@"width"] floatValue] : image.size.width;
+                                                                             height = _markerSize[@"height"] ? [_markerSize[@"height"] floatValue] : image.size.height;
+
+                                                                            CGSize newSize = CGSizeMake(width, height);
+                                                                            UIGraphicsBeginImageContextWithOptions(newSize, false, 0);
+                                                                            [image drawInRect:CGRectMake(0, 0, newSize.width, newSize.height)];
+                                                                            UIImage *newImage = UIGraphicsGetImageFromCurrentImageContext();
+                                                                            UIGraphicsEndImageContext();
+                                                                            
+                                                                            self.image = newImage;
+                                                                         } else {
+                                                                             self.image = image;
+                                                                         }
                                                                      });
                                                                  }];
 }

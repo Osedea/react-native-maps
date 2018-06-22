@@ -34,6 +34,7 @@
 @property (nonatomic, strong) UIColor *pinColor;
 @property (nonatomic, assign) NSInteger zIndex;
 @property (nonatomic, assign) double opacity;
+@property (nonatomic, strong) NSDictionary *markerSize;
 
 @property (nonatomic, copy) RCTBubblingEventBlock onPress;
 @property (nonatomic, copy) RCTDirectEventBlock onSelect;

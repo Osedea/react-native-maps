@@ -16,6 +16,7 @@
 @property (nonatomic, strong) NSString *identifier;
 @property (nonatomic, weak) AIRGoogleMapMarker *fakeMarker;
 @property (nonatomic, copy) RCTBubblingEventBlock onPress;
+@property (nonatomic, strong) NSDictionary *markerScale;
 @end
 
 
