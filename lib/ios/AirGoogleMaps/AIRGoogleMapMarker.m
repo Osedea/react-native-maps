@@ -188,6 +188,11 @@ CGRect unionRect(CGRect a, CGRect b) {
   _realMarker.opacity = opacity;
 }
 
+- (void)setMarkerSize:(NSDictionary *)markerSize
+{
+    _realMarker.markerSize = markerSize;
+}
+
 - (void)setImageSrc:(NSString *)imageSrc
 {
   _imageSrc = imageSrc;
@@ -233,11 +238,19 @@ CGRect unionRect(CGRect a, CGRect b) {
 //                                                                   }
 
                                                                    UIImageView *imageView = [[UIImageView alloc] initWithImage:image];
+                                                                   float imageWidth = image.size.width;
+                                                                   float imageHeight = image.size.height;
+                                                                     if (_realMarker.markerSize[@"width"]){
+                                                                         imageWidth = [_realMarker.markerSize[@"width"] floatValue];
+                                                                     }
+                                                                     if (_realMarker.markerSize[@"width"]){
+                                                                         imageWidth = [_realMarker.markerSize[@"width"] floatValue];
+                                                                     }
 
                                                                    // TODO: w,h or pixel density could be a prop.
                                                                    float density = 1;
-                                                                   float w = image.size.width/density;
-                                                                   float h = image.size.height/density;
+                                                                   float w = imageWidth/density;
+                                                                   float h = imageHeight/density;
                                                                    CGRect bounds = CGRectMake(0, 0, w, h);
 
                                                                    imageView.contentMode = UIViewContentModeScaleAspectFit;
