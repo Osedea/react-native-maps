@@ -86,6 +86,10 @@ public class AirMapMarker extends AirMapFeature {
   private boolean hasCustomMarkerView = false;
 
   static Map<String, Bitmap> iconCache = new HashMap<>();
+  
+  private ReadableMap markerStyle;
+  private int markerHeight = 0;
+  private int markerWidth = 0;
 
   private final DraweeHolder<?> logoHolder;
   private DataSource<CloseableReference<CloseableImage>> dataSource;
@@ -106,6 +110,9 @@ public class AirMapMarker extends AirMapFeature {
                 Bitmap bitmap = closeableStaticBitmap.getUnderlyingBitmap();
                 if (bitmap != null) {
                   bitmap = bitmap.copy(Bitmap.Config.ARGB_8888, true);
+                  if (markerStyle != null) {
+                    bitmap = Bitmap.createScaledBitmap(bitmap, markerWidth, markerHeight, false);
+                  }
                   iconBitmap = bitmap;
                   iconBitmapDescriptor = BitmapDescriptorFactory.fromBitmap(bitmap);
                 }
@@ -252,6 +259,16 @@ public class AirMapMarker extends AirMapFeature {
     update();
   }
 
+  public void setMarkerStyle(ReadableMap style) {
+    if (style != null) {
+      int height = style.hasKey("height") ? style.getInt("height") : 0;
+      int width = style.hasKey("width") ? style.getInt("width") : 0;
+      this.markerHeight = height;
+      this.markerWidth = width;
+    }
+    this.markerStyle = style;
+  }
+
   public LatLng interpolate(float fraction, LatLng a, LatLng b) {
     double lat = (b.latitude - a.latitude) * fraction + a.latitude;
     double lng = (b.longitude - a.longitude) * fraction + a.longitude;
@@ -304,12 +321,13 @@ public class AirMapMarker extends AirMapFeature {
       } else {
         try {
           bitmap = bitmapFromNetwork(uri);
-
-          iconBitmap = bitmap;
-          iconBitmapDescriptor = BitmapDescriptorFactory.fromBitmap(bitmap);
+          Bitmap resizedBitmap = Bitmap.createScaledBitmap(bitmap, this.markerWidth, this.markerHeight , false);
+          
+          iconBitmap = resizedBitmap;
+          iconBitmapDescriptor = BitmapDescriptorFactory.fromBitmap(resizedBitmap);
 
           // add fetched bitmap to 'virtual' cache
-          iconCache.put(uri, bitmap);
+          iconCache.put(uri, resizedBitmap);
         } catch (Exception e) {
           iconBitmapDescriptor = null;
         }
@@ -322,8 +340,14 @@ public class AirMapMarker extends AirMapFeature {
           iconBitmap = BitmapFactory.decodeResource(getResources(), drawableId);
           if (iconBitmap == null) { // VectorDrawable or similar
               Drawable drawable = getResources().getDrawable(drawableId);
-              iconBitmap = Bitmap.createBitmap(drawable.getIntrinsicWidth(), drawable.getIntrinsicHeight(), Bitmap.Config.ARGB_8888);
-              drawable.setBounds(0, 0, drawable.getIntrinsicWidth(), drawable.getIntrinsicHeight());
+              int width = drawable.getIntrinsicWidth();
+              int height = drawable.getIntrinsicHeight();
+              if (markerStyle != null) {
+                width = markerWidth;
+                height = markerHeight;
+              }
+              iconBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
+              drawable.setBounds(0, 0, width, height);
               Canvas canvas = new Canvas(iconBitmap);
               drawable.draw(canvas);
           }
