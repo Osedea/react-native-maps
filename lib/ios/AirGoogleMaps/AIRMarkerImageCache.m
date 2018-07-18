@@ -25,6 +25,34 @@
     return instance;
 }
 
+ /**
+  * get shared UIImage
+  */
+- (UIImageView *)getSharedUIImage:(NSString *)imageSrc withSize:(CGSize) size{
+    UIImageView* cachedImage = self.cache[imageSrc];
+    
+    CGImageRef cgref = [cachedImage.image CGImage];
+    CIImage *cim = [cachedImage.image CIImage];
+    if (cim == nil && cgref == NULL) {
+        UIImageView *imageView;
+        if ([imageSrc hasPrefix:@"http://"] || [imageSrc hasPrefix:@"https://"]) {
+            NSURL *url = [NSURL URLWithString:imageSrc];
+            NSData *data = [NSData dataWithContentsOfURL:url];
+            
+            UIImage *image = [UIImage imageWithData:data];
+            imageView = [[UIImageView alloc] initWithFrame:CGRectMake(0, 0, size.width, size.height)];
+            imageView.image = image;
+            imageView.contentMode = UIViewContentModeScaleAspectFit;
+        } else {
+            imageView = [[UIImageView alloc] initWithImage:[UIImage imageWithContentsOfFile:imageSrc]];
+        }
+        self.cache[imageSrc] = imageView;
+        return imageView;
+    } else {
+        return cachedImage;
+    }
+}
+
 /**
  * Do not use this. Use +(instancetype)sharedInstance to get the singleton.
  */
