@@ -38,7 +38,7 @@ CGRect unionRect(CGRect a, CGRect b) {
     if ((self = [super init])) {
         _realMarker = [[AIRGMSMarker alloc] init];
         _realMarker.fakeMarker = self;
-        _realMarker.tracksViewChanges = true;
+        _realMarker.tracksViewChanges = false;
         _realMarker.tracksInfoWindowChanges = false;
         _imageCache = [AIRMarkerImageCache sharedInstance];
     }
@@ -92,7 +92,6 @@ CGRect unionRect(CGRect a, CGRect b) {
     if ([subview isKindOfClass:[AIRGoogleMapCallout class]]) {
         self.calloutView = (AIRGoogleMapCallout *)subview;
     } else { // a child view of the marker
-        NSLog(@"we made it boiz");
         [self iconViewInsertSubview:(UIView*)subview atIndex:atIndex+1];
     }
     AIRDummyView *dummySubview = [[AIRDummyView alloc] initWithView:(UIView *)subview];
@@ -198,22 +197,22 @@ CGRect unionRect(CGRect a, CGRect b) {
     float width = [markerSize[@"width"] floatValue];
     float height = [markerSize[@"height"] floatValue];
     if ([_realMarker iconView] != nil) {
-        UIImageView *imageView = [[AIRMarkerImageCache sharedInstance] getSharedUIImage:[self imageSrc] withSize:CGSizeMake(width, height)];
-        [self setIcon:imageView];
+        UIImage *image = [[AIRMarkerImageCache sharedInstance] getSharedUIImage:[self imageSrc] withSize:CGSizeMake(width, height)];
+        [self setIcon:image];
     }
     _realMarker.markerSize = markerSize;
 }
 
-- (void)setIcon:(UIImageView *)imageView
+- (void)setIcon:(UIImage *)image
 {
-    CGImageRef cgref = [imageView.image CGImage];
-    CIImage *cim = [imageView.image CIImage];
+    CGImageRef cgref = [image CGImage];
+    CIImage *cim = [image CIImage];
     
     if (cim == nil && cgref == NULL) {
         _realMarker.iconView = nil;
         _realMarker.icon = nil;
     } else {
-        _realMarker.iconView = imageView;
+        _realMarker.icon = image;
     }
 }
 
@@ -222,9 +221,9 @@ CGRect unionRect(CGRect a, CGRect b) {
     float width = [_realMarker.markerSize[@"width"] floatValue] != 0 ? [_realMarker.markerSize[@"width"] floatValue] : 25;
     float height = [_realMarker.markerSize[@"height"] floatValue] != 0 ? [_realMarker.markerSize[@"height"] floatValue]: 68;
     
-    UIImageView *imageView = [[AIRMarkerImageCache sharedInstance] getSharedUIImage:imageSrc withSize:CGSizeMake(width, height)];
+    UIImage *image = [[AIRMarkerImageCache sharedInstance] getSharedUIImage:imageSrc withSize:CGSizeMake(width, height)];
     _imageSrc = imageSrc;
-    [self setIcon:imageView];
+    [self setIcon:image];
 }
 
 - (void)setTitle:(NSString *)title {

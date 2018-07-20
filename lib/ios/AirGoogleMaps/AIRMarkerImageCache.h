@@ -10,5 +10,5 @@
 @interface AIRMarkerImageCache : NSObject
 @property (strong, nonatomic) NSMutableDictionary *cache;
 + (instancetype) sharedInstance;
-- (UIImageView *) getSharedUIImage:(NSString *)imageSrc withSize:(CGSize)size;
+- (UIImage *) getSharedUIImage:(NSString *)imageSrc withSize:(CGSize)size;
 @end
