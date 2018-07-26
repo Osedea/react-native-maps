@@ -85,6 +85,7 @@ public class AirMapMarker extends AirMapFeature {
 
   private boolean hasCustomMarkerView = false;
 
+  private ReadableMap markerSize;
   private int markerHeight = 0;
   private int markerWidth = 0;
 
@@ -109,6 +110,9 @@ public class AirMapMarker extends AirMapFeature {
                 Bitmap bitmap = closeableStaticBitmap.getUnderlyingBitmap();
                 if (bitmap != null) {
                   bitmap = bitmap.copy(Bitmap.Config.ARGB_8888, true);
+                  if (markerSize != null) {
+                    bitmap = bitmap.createScaledBitmap(bitmap, markerWidth, markerHeight, false);
+                  }
                   iconBitmap = bitmap;
                   iconBitmapDescriptor = BitmapDescriptorFactory.fromBitmap(bitmap);
                 }
@@ -256,6 +260,7 @@ public class AirMapMarker extends AirMapFeature {
   }
 
   public void setMarkerSize(ReadableMap size) {
+    this.markerSize = size;
     this.markerWidth = size.getInt("width");
     this.markerHeight = size.getInt("height");
   }
@@ -293,7 +298,6 @@ public class AirMapMarker extends AirMapFeature {
       ImageRequest imageRequest = ImageRequestBuilder
           .newBuilderWithSource(Uri.parse(uri))
           .build();
-
       ImagePipeline imagePipeline = Fresco.getImagePipeline();
       dataSource = imagePipeline.fetchDecodedImage(imageRequest, this);
       DraweeController controller = Fresco.newDraweeControllerBuilder()
@@ -332,10 +336,22 @@ public class AirMapMarker extends AirMapFeature {
       iconBitmapDescriptor = getBitmapDescriptorByName(uri);
       if (iconBitmapDescriptor != null) {
           int drawableId = getDrawableResourceByName(uri);
-          iconBitmap = BitmapFactory.decodeResource(getResources(), drawableId);
+          Bitmap bitmap = BitmapFactory.decodeResource(getResources(), drawableId);
+          if (markerSize != null) {
+            bitmap = Bitmap.createScaledBitmap(bitmap, markerWidth, markerHeight, false);
+          }
+          iconBitmap = bitmap;
           if (iconBitmap == null) { // VectorDrawable or similar
               Drawable drawable = getResources().getDrawable(drawableId);
-              iconBitmap = Bitmap.createBitmap(drawable.getIntrinsicWidth(), drawable.getIntrinsicHeight(), Bitmap.Config.ARGB_8888);
+              int width = drawable.getIntrinsicWidth();
+              int height = drawable.getIntrinsicHeight();
+
+              if (markerSize != null) {
+                width = markerWidth;
+                height = markerHeight;
+              }
+
+              iconBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
               drawable.setBounds(0, 0, drawable.getIntrinsicWidth(), drawable.getIntrinsicHeight());
               Canvas canvas = new Canvas(iconBitmap);
               drawable.draw(canvas);
