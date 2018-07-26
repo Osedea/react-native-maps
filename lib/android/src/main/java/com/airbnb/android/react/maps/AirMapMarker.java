@@ -339,6 +339,7 @@ public class AirMapMarker extends AirMapFeature {
           Bitmap bitmap = BitmapFactory.decodeResource(getResources(), drawableId);
           if (markerSize != null) {
             bitmap = Bitmap.createScaledBitmap(bitmap, markerWidth, markerHeight, false);
+            iconBitmapDescriptor = BitmapDescriptorFactory.fromBitmap(bitmap);
           }
           iconBitmap = bitmap;
           if (iconBitmap == null) { // VectorDrawable or similar
