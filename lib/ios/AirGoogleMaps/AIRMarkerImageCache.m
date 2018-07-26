@@ -39,12 +39,19 @@
             NSURL *url = [NSURL URLWithString:imageSrc];
             NSData *data = [NSData dataWithContentsOfURL:url];
             
-            image = [UIImage imageWithData:data scale:8];
+            image = [UIImage imageWithData:data scale:8.5];
 //            imageView = [[UIImageView alloc] initWithFrame:CGRectMake(0, 0, size.width, size.height)];
 //            imageView.image = image;
 //            imageView.contentMode = UIViewContentModeScaleAspectFit;
         } else {
             image = [UIImage imageWithContentsOfFile:imageSrc];
+            if (!CGSizeEqualToSize(CGSizeZero, size)) {
+                UIGraphicsBeginImageContextWithOptions(size, false, 0.0);
+                [image drawInRect:CGRectMake(0, 0, size.width, size.height)];
+                UIImage *resizedImage = UIGraphicsGetImageFromCurrentImageContext();
+                UIGraphicsEndImageContext();
+                image = resizedImage;
+            }
         }
         self.cache[imageSrc] = image;
         return image;
